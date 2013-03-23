@@ -9,6 +9,6 @@ Ruby binding for [lrun](https://github.com/quark-zju/lrun)
 
 lrun-ruby is documented with example codes. 
 
-[Browse online](http://rubydoc.info/github/quark-zju/lrun-ruby).
+[Browse online](http://rdoc.info/github/quark-zju/lrun-ruby).
 
 Alternatively, run `rake yard` and open `doc/index.html`.

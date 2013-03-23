@@ -236,6 +236,7 @@ module Lrun
     tmp_out = tmp_err = nil
 
     # Create temp stdout, stderr files if user does not redirect them
+    options = options.dup
     options[:stdout] ||= (tmp_out = Tempfile.new("lrun.#{$$}.out")).path
     options[:stderr] ||= (tmp_err = Tempfile.new("lrun.#{$$}.err")).path
 

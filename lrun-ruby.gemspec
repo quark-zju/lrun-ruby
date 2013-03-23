@@ -13,5 +13,8 @@ Gem::Specification.new do |s|
   s.files = %w(LICENSE README.md Rakefile lrun-ruby.gemspec)
   s.files += Dir.glob("lib/**/*.rb")
   s.files += Dir.glob("spec/**/*.rb")
+  s.add_development_dependency 'rake', '>= 10.0'
+  s.add_development_dependency 'rspec', '>= 2.13'
+  s.add_development_dependency 'yard', '>= 0.8'
   s.test_files = Dir['spec/**/*.rb']
 end

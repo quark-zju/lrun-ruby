@@ -100,10 +100,10 @@ module Lrun
     #   @return [Integer] signal number received, or <tt>nil</tt> if exited normally
     #
     # @!attribute stdout
-    #   @return [String] standard output, or <tt>nil</tt> if it is ignored in options
+    #   @return [String] standard output, or <tt>nil</tt> if it is redirected in options
     #
     # @!attribute stderr
-    #   @return [String] standard error output, or <tt>nil</tt> if stderr is ignored in options
+    #   @return [String] standard error output, or <tt>nil</tt> if stderr is redirected in options
 
     # @return [Boolean] whether the program exited without crash and has a zero exit code
     def clean?
@@ -208,25 +208,25 @@ module Lrun
   #   # => #<struct Lrun::Result
   #   #             memory=262144, cputime=0.002,
   #   #             exceed=nil, exitcode=0, signal=nil,
-  #   #             stdout="hello\n", stderr=nil>
+  #   #             stdout="hello\n", stderr="">
   #
-  #   Lrun.run('java', :max_memory => 2 ** 19)
+  #   Lrun.run('java', :max_memory => 2 ** 19, :stdout => '/tmp/out.txt')
   #   # => #<struct Lrun::Result
   #   #             memory=524288, cputime=0.006,
   #   #             exceed=:memory, exitcode=0, signal=nil,
-  #   #             stdout=nil, stderr=nil>
+  #   #             stdout=nil, stderr="">
   #
-  #   Lrun.run('sleep 30', :max_real_time => 1)
+  #   Lrun.run('sleep 30', :max_real_time => 1, :stderr => '/dev/null')
   #   #  => #<struct Lrun::Result
   #   #              memory=262144, cputime=0.002,
   #   #              exceed=:time, exitcode=0, signal=nil,
-  #   #              stdout=nil, stderr=nil>
+  #   #              stdout="", stderr=nil>
   #
-  #    Lrun.run('cat /dev/full', :max_output => 100, :truncate => 2)
+  #    Lrun.run('cat', :max_output => 100, :stdin => '/dev/urandom', :truncate => 2)
   #    # => #<struct Lrun::Result
-  #    #             memory=67366912, cputime=0.05,
+  #    #             memory=782336, cputime=0.05,
   #    #             exceed=:output, exitcode=0, signal=nil,
-  #    #             stdout="\x00\x00", stderr=nil>  
+  #    #             stdout="U\xE1", stderr="">
   #
   def self.run(commands, options = {})
     tmp_out, tmp_err = nil, nil
@@ -235,48 +235,25 @@ module Lrun
       # Expand commands if commands is a string
       commands = Shellwords.split(commands) if commands.is_a? String
 
-      # Build command line
-      command_line = [LRUN_PATH, *expand_options(options), *commands]
-      spawn_options = {0 => options[:stdin] || :close,
-                       1 => options[:stdout] || (tmp_out = Tempfile.new("lrun.#{$$}.out")).path,
-                       2 => options[:stderr] || (tmp_err = Tempfile.new("lrun.#{$$}.err")).path,
-                       3 => wfd.fileno}
+      # Create temp stdout, stderr files
+      options[:stdout] ||= (tmp_out = Tempfile.new("lrun.#{$$}.out")).path
+      options[:stderr] ||= (tmp_err = Tempfile.new("lrun.#{$$}.err")).path
 
       # Keep pid of lrun process for checking its status
-      pid = Process.spawn(*command_line, spawn_options)
+      pid = spawn_lrun commands, options, wfd
 
       # Read fd 3, where lrun write its report
       [wfd].each(&:close)
-      report = Hash[rfd.lines.map{ |l| l.chomp.split(' ', 2)}]
+      report = rfd.read
 
       # Check if lrun exits normally
       stat = Process.wait2(pid)[-1]
       if stat.signaled? || stat.exitstatus != 0
-        raise LrunError.new("#{Shellwords.shelljoin command_line} exits abnormally: #{stat}. #{tmp_err.read unless tmp_err.nil?}")
+        raise LrunError.new("lrun exits abnormally: #{stat}. #{tmp_err.read unless tmp_err.nil?}")
       end
 
-      # Check which limit is exceeded
-      exceed = case report['EXCEED']
-               when 'none'
-                 nil
-               when /TIME/
-                 :time
-               when /OUTPUT/
-                 :output
-               when /MEMORY/
-                 :memory
-               else
-                 raise LrunError.new("unexpected EXCEED returned by lrun: #{report['EXCEED']}")
-               end
-      signal = report['SIGNALED'].to_i == 0 ? nil : report['TERMSIG'].to_i
-
-      Result.new(report['MEMORY'].to_i,
-                 report['CPUTIME'].to_f,
-                 exceed,
-                 report['EXITCODE'].to_i,
-                 signal,
-                 tmp_out && tmp_out.read(options[:truncate] || TRUNCATE_OUTPUT_LENGTH),
-                 tmp_err && tmp_err.read(options[:truncate] || TRUNCATE_OUTPUT_LENGTH))
+      # Build and return result
+      build_result report, tmp_out, tmp_err, options[:truncate]
     end
   ensure
     [tmp_out, tmp_err].compact.each do |f|
@@ -285,11 +262,11 @@ module Lrun
     end
   end
 
-  protected
+  private
 
   # Expand options to be used in command line
   #
-  # @param [Hash] options single options hash returned by merge_options
+  # @param [Hash] options single options hash returned by {Lrun.merge_options}
   # @return [Array<String>] command line arguments
   #
   # = Example
@@ -299,12 +276,78 @@ module Lrun
   def self.expand_options(options)
     raise ArgumentError.new('expect options to be a Hash') unless options.is_a? Hash
 
-    options.map do |key, values|
-      next unless LRUN_OPTIONS.has_key? key
-      [*values].map do |value|
-        ["--#{key.to_s.gsub('_', '-')}", *value]
-      end
-    end.compact.flatten.map(&:to_s)
+    command_arguments = options.map do |key, values|
+      expand_option key, values
+    end
+
+    command_arguments.compact.flatten.map(&:to_s)
+  end
+
+  # Expand a single option to be used in command line
+  #
+  # @param [Symbol] key option name
+  # @param [Array, #to_s] values option value(s)
+  # @return [Array<String>] arguments used in command line
+  def self.expand_option(key, values)
+    return nil unless LRUN_OPTIONS.has_key? key
+
+    [*values].map do |value|
+      ["--#{key.to_s.gsub('_', '-')}", *value]
+    end
+  end
+
+  # Spawn lrun process.
+  #
+  # @param [IO:fd] report_fd
+  #   file descriptor used to receive lrun report
+  #
+  # @return [Integer] pid spawned process id of lrun
+  def self.spawn_lrun(commands, options, report_fd)
+    # Expand commands if commands is a string
+    commands = Shellwords.split(commands) if commands.is_a? String
+
+    # Build command line
+    command_line = [LRUN_PATH, *expand_options(options), *commands]
+    spawn_options = {0 => options[:stdin] || :close,
+                     1 => options[:stdout] || (tmp_out = Tempfile.new("lrun.#{$$}.out")).path,
+                     2 => options[:stderr] || (tmp_err = Tempfile.new("lrun.#{$$}.err")).path,
+                     3 => report_fd.fileno}
+
+    # Keep pid of lrun process for checking its status
+    Process.spawn(*command_line, spawn_options)
+  end
+
+  # Build {Lrun::Result} from essential information.
+  #
+  # @return [Lrun:Result]
+  def self.build_result(lrun_report, stdout = nil, stderr = nil, truncate = TRUNCATE_OUTPUT_LENGTH)
+    report = Hash[lrun_report.lines.map{ |l| l.chomp.split(' ', 2)}]
+
+    # Collect limit exceeding information
+    exceed = case report['EXCEED']
+             when 'none'
+               nil
+             when /TIME/
+               :time
+             when /OUTPUT/
+               :output
+             when /MEMORY/
+               :memory
+             else
+               raise LrunError.new("unexpected EXCEED returned by lrun: #{report['EXCEED']}")
+             end
+
+    # Collect signal information
+    signal = report['SIGNALED'].to_i == 0 ? nil : report['TERMSIG'].to_i
+
+    # Build Result
+    Result.new(report['MEMORY'].to_i,
+               report['CPUTIME'].to_f,
+               exceed,
+               report['EXITCODE'].to_i,
+               signal,
+               stdout && (stdout.read(truncate) || ''),
+               stderr && (stderr.read(truncate) || ''))
   end
 
 end

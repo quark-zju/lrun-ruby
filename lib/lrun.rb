@@ -229,25 +229,22 @@ module Lrun
   #    #             stdout="U\xE1", stderr="">
   #
   def self.run(commands, options = {})
-    # Complain about missing lrun binary
-    raise "#{LRUN_BINARY} not found in PATH. Please install lrun first." if LRUN_PATH.nil?
+    # Make sure lrun binary is available
+    available!
 
     # Temp files storing stdout and stderr of target process
-    tmp_out, tmp_err = nil, nil
+    tmp_out = tmp_err = nil
+
+    # Create temp stdout, stderr files if user does not redirect them
+    options[:stdout] ||= (tmp_out = Tempfile.new("lrun.#{$$}.out")).path
+    options[:stderr] ||= (tmp_err = Tempfile.new("lrun.#{$$}.err")).path
 
     IO.pipe do |rfd, wfd|
-      # Expand commands if commands is a string
-      commands = Shellwords.split(commands) if commands.is_a? String
-
-      # Create temp stdout, stderr files
-      options[:stdout] ||= (tmp_out = Tempfile.new("lrun.#{$$}.out")).path
-      options[:stderr] ||= (tmp_err = Tempfile.new("lrun.#{$$}.err")).path
-
       # Keep pid of lrun process for checking its status
       pid = spawn_lrun commands, options, wfd
 
       # Read fd 3, where lrun write its report
-      [wfd].each(&:close)
+      wfd.close
       report = rfd.read
 
       # Check if lrun exits normally
@@ -260,13 +257,31 @@ module Lrun
       build_result report, tmp_out, tmp_err, options[:truncate]
     end
   ensure
-    [tmp_out, tmp_err].compact.each do |f|
-      f.close rescue nil
-      f.unlink rescue nil
-    end
+    clean_tmpfile [tmp_out, tmp_err]
+  end
+
+  # Check if lrun binary exists
+  #
+  # @return [Bool] whether lrun binary is found
+  def self.available?
+    !LRUN_PATH.nil?
+  end
+
+  # Complain if lrun binary is not available
+  def self.available!
+    raise "#{LRUN_BINARY} not found in PATH. Please install lrun first." unless available?
   end
 
   private
+
+  # Clean temp files
+  #
+  # @param [Array<Tempfile>] temp_files temp files to be cleaned
+  def self.clean_tmpfile(temp_files)
+    temp_files.each do |file|
+      file.unlink rescue nil
+    end
+  end
 
   # Expand options to be used in command line
   #
@@ -327,31 +342,35 @@ module Lrun
   def self.build_result(lrun_report, stdout = nil, stderr = nil, truncate = TRUNCATE_OUTPUT_LENGTH)
     report = Hash[lrun_report.lines.map{ |l| l.chomp.split(' ', 2)}]
 
-    # Collect limit exceeding information
-    exceed = case report['EXCEED']
-             when 'none'
-               nil
-             when /TIME/
-               :time
-             when /OUTPUT/
-               :output
-             when /MEMORY/
-               :memory
-             else
-               raise LrunError.new("unexpected EXCEED returned by lrun: #{report['EXCEED']}")
-             end
-
-    # Collect signal information
+    # Collect information
+    memory = report['MEMORY'].to_i
+    cputime = report['CPUTIME'].to_f
+    exceed = parse_exceed(report['EXCEED'])
+    exitcode = report['EXITCODE'].to_i
     signal = report['SIGNALED'].to_i == 0 ? nil : report['TERMSIG'].to_i
+    stdout &&= stdout.read(truncate) || ''
+    stderr &&= stderr.read(truncate) || ''
 
     # Build Result
-    Result.new(report['MEMORY'].to_i,
-               report['CPUTIME'].to_f,
-               exceed,
-               report['EXITCODE'].to_i,
-               signal,
-               stdout && (stdout.read(truncate) || ''),
-               stderr && (stderr.read(truncate) || ''))
+    Result.new(memory, cputime, exceed, exitcode, signal, stdout, stderr)
   end
 
+  # Parse exceed information from lrun report
+  #
+  # @param [String] report_exceed exceed reported by lrun
+  # @return [Symbol, nil] exceeded limit in symbol, or <tt>nil</tt> if no limit exceeded
+  def self.parse_exceed(report_exceed)
+    case report_exceed
+    when 'none'
+      nil
+    when /TIME/
+      :time
+    when /OUTPUT/
+      :output
+    when /MEMORY/
+      :memory
+    else
+      raise LrunError.new("unexpected EXCEED returned by lrun: #{report['EXCEED']}")
+    end
+  end
 end

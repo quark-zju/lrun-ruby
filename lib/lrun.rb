@@ -150,7 +150,7 @@ module Lrun
     options.compact!
 
     # Check type of options
-    raise ArgumentError.new("options should be Hash") unless options.all? { |o| o.is_a? Hash }
+    raise TypeError.new("options should be Hash") unless options.all? { |o| o.is_a? Hash }
 
     # Merge options
     options.inject({}) do |result, option|
@@ -294,7 +294,7 @@ module Lrun
   #   Lrun.format_options({:chdir=>"/tmp", :bindfs=>[["/a", "/b"], ["/c", "/d"]], :fd => [2, 3]})
   #   # => ["--chdir", "/tmp", "--bindfs", "/a", "/b", "--bindfs", "/c", "/d", "--fd", "2", "--fd", "3"]
   def self.expand_options(options)
-    raise ArgumentError.new('expect options to be a Hash') unless options.is_a? Hash
+    raise TypeError.new('expect options to be a Hash') unless options.is_a? Hash
 
     command_arguments = options.map do |key, values|
       expand_option key, values

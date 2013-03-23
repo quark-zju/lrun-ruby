@@ -39,6 +39,9 @@ require 'lrun'
 #   # => {:max_cpu_time=>1, :tmpfs=>[["/tmp", 1048576]], :chdir=>"/tmp"} 
 #   runner.max_cpu_time(nil).options
 #   # => {:tmpfs=>[["/tmp", 1048576]], :chdir=>"/tmp"} 
+#
+#   runner.run('pwd').stdout
+#   # => "/tmp\n"
 #   runner.cmd("touch `seq 1 4`").run('ls').stdout
 #   # => "1\n2\n3\n4\n"
 #   runner.cmd("echo 'puts ENV[?A]' > a.rb").env('A' => 'Hello').run('ruby a.rb').stdout

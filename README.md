@@ -7,7 +7,7 @@ Ruby binding for [lrun](https://github.com/quark-zju/lrun)
 
 ## Documentation
 
-lrun-ruby is documented with example codes. 
+lrun-ruby is documented with examples. 
 
 [Browse online](http://rdoc.info/github/quark-zju/lrun-ruby).
 

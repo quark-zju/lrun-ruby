@@ -41,7 +41,6 @@ end
 describe Lrun, '#run', :if => Lrun.available? do
 
   context "when running true and false", :if => [system('true'), system('false')] == [true, false] do
-
     let(:true_result) { Lrun.run('true') }
     let(:false_result) { Lrun.run('false') }
 
@@ -79,7 +78,6 @@ describe Lrun, '#run', :if => Lrun.available? do
       true_result.crashed?.should be_false
       false_result.crashed?.should be_false
     end
-
   end
 
   context 'when running cat', :if => system('cat </dev/null >/dev/null') do
@@ -99,7 +97,6 @@ describe Lrun, '#run', :if => Lrun.available? do
       Lrun.run('cat', options)
       options.should == {}
     end
-
   end
 
   context 'when running echo', :if => system('echo </dev/null >/dev/null') do
@@ -119,7 +116,6 @@ describe Lrun, '#run', :if => Lrun.available? do
         tmpfile.unlink rescue nil
       end
     end
-
   end
 
   context 'when setting limit options' do
@@ -132,7 +128,13 @@ describe Lrun, '#run', :if => Lrun.available? do
   end
 
   context 'when parameters are illegal' do
-    it 'handle errors' do
+    it 'rejects empty command' do
+      lambda { Lrun.run(nil) }.should raise_error(ArgumentError)
+      lambda { Lrun.run('') }.should raise_error(ArgumentError)
+      lambda { Lrun.run([]) }.should raise_error(ArgumentError)
+    end
+
+    it 'handles lrun errors' do
       lambda { Lrun.run('strange_non_existed_executable') }.should raise_error(Lrun::LrunError)
       lambda { Lrun.run(['--unsupported-options', 'true']) }.should raise_error(Lrun::LrunError)
     end

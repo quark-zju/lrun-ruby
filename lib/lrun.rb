@@ -325,6 +325,7 @@ module Lrun
   def self.spawn_lrun(commands, options, report_fd)
     # Expand commands if commands is a string
     commands = Shellwords.split(commands) if commands.is_a? String
+    raise ArgumentError, 'commands should not be empty' if commands.nil? || commands.empty?
 
     # Build command line
     command_line = [LRUN_PATH, *expand_options(options), *commands]

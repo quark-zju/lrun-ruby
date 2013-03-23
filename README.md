@@ -11,4 +11,4 @@ lrun-ruby is documented with examples.
 
 [Browse online](http://rdoc.info/github/quark-zju/lrun-ruby).
 
-Alternatively, run `rake yard` and open `doc/index.html`.
+Alternatively, run `rake doc` and open `doc/index.html`.

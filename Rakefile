@@ -5,3 +5,6 @@ task :default => :spec
 
 RSpec::Core::RakeTask.new
 YARD::Rake::YardocTask.new
+
+task :doc => [:yard]
+task :test => [:spec]

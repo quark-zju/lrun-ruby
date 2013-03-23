@@ -40,7 +40,7 @@ end
 
 describe Lrun, '#run', :if => Lrun.available? do
 
-  context "when running true and false", :if => [system('true'), system('false')] == [true, false] do
+  context "when running true and false" do
     let(:true_result) { Lrun.run('true') }
     let(:false_result) { Lrun.run('false') }
 
@@ -80,7 +80,7 @@ describe Lrun, '#run', :if => Lrun.available? do
     end
   end
 
-  context 'when running cat', :if => system('cat </dev/null >/dev/null') do
+  context 'when running cat' do
     it 'can redirect stdin' do
       begin
         tmpfile = Tempfile.new("input")
@@ -99,7 +99,7 @@ describe Lrun, '#run', :if => Lrun.available? do
     end
   end
 
-  context 'when running echo', :if => system('echo </dev/null >/dev/null') do
+  context 'when running echo' do
     it 'captures stdout' do
       Lrun.run('echo Hello').stdout.should == "Hello\n"
       Lrun.run(['echo', 'World']).stdout.should == "World\n"

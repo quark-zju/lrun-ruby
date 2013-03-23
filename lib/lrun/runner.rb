@@ -77,7 +77,7 @@ class Lrun::Runner
   # @param [Hash] options new options to be merged
   # @return [Lrun::Runner] new runner created with merged options
   def where(options)
-    raise TypeError.new('expect options to be a Hash') unless options.is_a? Hash
+    raise TypeError, 'expect options to be a Hash' unless options.is_a? Hash
     Lrun::Runner.new(Lrun.merge_options(@options, options))
   end
 

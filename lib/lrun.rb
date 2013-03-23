@@ -150,7 +150,7 @@ module Lrun
     options.compact!
 
     # Check type of options
-    raise TypeError.new("options should be Hash") unless options.all? { |o| o.is_a? Hash }
+    raise TypeError, 'options should be Hash' unless options.all? { |o| o.is_a? Hash }
 
     # Merge options
     options.inject({}) do |result, option|
@@ -200,7 +200,7 @@ module Lrun
   #
   #   Note: lrun chroot and mounts does not affect above paths.
   #
-  # @return [LrunResult]
+  # @return [Lrun::Result]
   #
   # = Example
   #
@@ -222,11 +222,11 @@ module Lrun
   #   #              exceed=:time, exitcode=0, signal=nil,
   #   #              stdout="", stderr=nil>
   #
-  #    Lrun.run('cat', :max_output => 100, :stdin => '/dev/urandom', :truncate => 2)
-  #    # => #<struct Lrun::Result
-  #    #             memory=782336, cputime=0.05,
-  #    #             exceed=:output, exitcode=0, signal=nil,
-  #    #             stdout="U\xE1", stderr="">
+  #   Lrun.run('cat', :max_output => 100, :stdin => '/dev/urandom', :truncate => 2)
+  #   # => #<struct Lrun::Result
+  #   #             memory=782336, cputime=0.05,
+  #   #             exceed=:output, exitcode=0, signal=nil,
+  #   #             stdout="U\xE1", stderr="">
   #
   def self.run(commands, options = {})
     # Make sure lrun binary is available
@@ -251,7 +251,7 @@ module Lrun
       # Check if lrun exits normally
       stat = Process.wait2(pid)[-1]
       if stat.signaled? || stat.exitstatus != 0
-        raise LrunError.new("lrun exits abnormally: #{stat}. #{tmp_err.read unless tmp_err.nil?}")
+        raise LrunError, "lrun exits abnormally: #{stat}. #{tmp_err.read unless tmp_err.nil?}"
       end
 
       # Build and return result
@@ -270,7 +270,7 @@ module Lrun
 
   # Complain if lrun binary is not available
   def self.available!
-    raise "#{LRUN_BINARY} not found in PATH. Please install lrun first." unless available?
+    raise LrunError, "#{LRUN_BINARY} not found in PATH. Please install lrun first." unless available?
   end
 
   private
@@ -294,7 +294,7 @@ module Lrun
   #   Lrun.format_options({:chdir=>"/tmp", :bindfs=>[["/a", "/b"], ["/c", "/d"]], :fd => [2, 3]})
   #   # => ["--chdir", "/tmp", "--bindfs", "/a", "/b", "--bindfs", "/c", "/d", "--fd", "2", "--fd", "3"]
   def self.expand_options(options)
-    raise TypeError.new('expect options to be a Hash') unless options.is_a? Hash
+    raise TypeError, 'expect options to be a Hash' unless options.is_a? Hash
 
     command_arguments = options.map do |key, values|
       expand_option key, values
@@ -339,7 +339,7 @@ module Lrun
 
   # Build {Lrun::Result} from essential information.
   #
-  # @return [Lrun:Result]
+  # @return [Lrun::Result]
   def self.build_result(lrun_report, stdout = nil, stderr = nil, truncate = TRUNCATE_OUTPUT_LENGTH)
     report = Hash[lrun_report.lines.map{ |l| l.chomp.split(' ', 2)}]
 
@@ -371,7 +371,7 @@ module Lrun
     when /MEMORY/
       :memory
     else
-      raise LrunError.new("unexpected EXCEED returned by lrun: #{report['EXCEED']}")
+      raise LrunError, "unexpected EXCEED returned by lrun: #{report['EXCEED']}"
     end
   end
 

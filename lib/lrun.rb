@@ -373,4 +373,7 @@ module Lrun
       raise LrunError.new("unexpected EXCEED returned by lrun: #{report['EXCEED']}")
     end
   end
+
+  # Autoload {Lrun::Runner}
+  autoload :Runner, 'lrun/runner'
 end

@@ -38,7 +38,7 @@ describe Lrun, '#merge_options' do
 
 end
 
-describe Lrun, '#run', :unless => Lrun::LRUN_PATH.nil? do
+describe Lrun, '#run', :if => Lrun.available? do
 
   context "when running true and false", :if => [system('true'), system('false')] == [true, false] do
 
@@ -93,6 +93,13 @@ describe Lrun, '#run', :unless => Lrun::LRUN_PATH.nil? do
         tmpfile.unlink rescue nil
       end
     end
+
+    it 'does not alter options' do
+      options = {}
+      Lrun.run('cat', options)
+      options.should == {}
+    end
+
   end
 
   context 'when running echo', :if => system('echo </dev/null >/dev/null') do
@@ -112,6 +119,7 @@ describe Lrun, '#run', :unless => Lrun::LRUN_PATH.nil? do
         tmpfile.unlink rescue nil
       end
     end
+
   end
 
   context 'when setting limit options' do

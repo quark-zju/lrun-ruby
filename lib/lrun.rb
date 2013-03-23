@@ -120,7 +120,7 @@ module Lrun
   # Merge options so that it can be used in {Lrun.run}.
   #
   # @param [Array<Hash>] options options to be merged
-  # @return [Hash] merged options
+  # @return [Hash] merged options, can be used again in {Lrun.merge_options}
   #
   # = Example
   #

@@ -112,7 +112,7 @@ module Lrun
 
     # @return [Boolean] whether the program crashed (exited by signal)
     def crashed?
-      signal.nil?
+      !signal.nil?
     end
   end
 

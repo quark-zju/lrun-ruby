@@ -229,6 +229,10 @@ module Lrun
   #    #             stdout="U\xE1", stderr="">
   #
   def self.run(commands, options = {})
+    # Complain about missing lrun binary
+    raise "#{LRUN_BINARY} not found in PATH. Please install lrun first." if LRUN_PATH.nil?
+
+    # Temp files storing stdout and stderr of target process
     tmp_out, tmp_err = nil, nil
 
     IO.pipe do |rfd, wfd|

@@ -11,6 +11,11 @@ end
 
 describe Lrun, '#merge_options' do
 
+  it 'accepts empty options' do
+    Lrun.merge_options(nil).should == {}
+    Lrun.merge_options({}).should == {}
+  end
+
   it 'merges options' do
     Lrun.merge_options({:uid => 1000}, {:gid => 100, :interval => 2}, {:network => false}).should == {:network => false, :uid => 1000, :gid => 100, :interval => 2}
     Lrun.merge_options({:fd => [4, 6]}, {:fd => 5}, {:fd => 7}).should == {:fd=>[4, 6, 5, 7]}

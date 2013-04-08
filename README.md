@@ -20,14 +20,17 @@ Ruby binding for [lrun](https://github.com/quark-zju/lrun)
 gem install lrun-ruby
 ```
 
-## Documentation
-
-lrun-ruby is documented with examples. 
-
-[Browse online](http://rdoc.info/github/quark-zju/lrun-ruby).
-
-Alternatively, run `rake doc` and open `doc/index.html`.
-
 ## Usage
 
-See examples in documentation.
+```ruby
+require 'lrun'
+
+Lrun.run('false').exitcode # => 1
+Lrun.run(['echo', 'hello']).stdout # => "hello\n"
+
+runner = Lrun::Runner.new(:max_cpu_time=>1, :chdir=>"/tmp")
+runner.run('pwd').stdout # => "/tmp\n"
+runner.chdir('/bin').run('pwd').stdout # => "/bin\n"
+```
+
+See [documentation](http://rdoc.info/github/quark-zju/lrun-ruby/frames/index) for details.
